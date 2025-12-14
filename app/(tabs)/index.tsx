@@ -120,11 +120,11 @@ export default function NotesScreen() {
             style={{ opacity: isSelectionMode ? 0 : 1 }}
             pointerEvents={isSelectionMode ? 'none' : 'auto'}
           >
-            <View className="flex-row justify-center items-center mb-0 pt-0">
+            <View className="flex-row justify-center items-center mt-2" style={{ marginBottom: 0 }}>
               <View className="items-center justify-center">
                 <Image
                   source={require('../../assets/header_logo_brand.png')}
-                  style={{ width: 360, height: 100, resizeMode: 'contain', opacity: 1 }}
+                  style={{ width: 432, height: 120, resizeMode: 'contain', opacity: 1 }}
                   className="dark:opacity-80" // Slight dim in dark mode
                 />
               </View>
@@ -135,7 +135,7 @@ export default function NotesScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               className="mb-4 flex-grow-0"
-              contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 15, paddingTop: 5 }}
+              contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 15, paddingTop: 0 }}
             >
               {allTags.map((tag) => {
                 const isSelected = selectedFilter === tag;

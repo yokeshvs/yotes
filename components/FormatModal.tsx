@@ -129,23 +129,56 @@ export default function FormatModal({ visible, onClose, editor }: FormatModalPro
 
                         <View style={styles.separator} />
 
+                        <View style={styles.separator} />
+
                         {/* Row 2: Basic Formatting */}
                         <View style={styles.gridRow}>
-                            <IconToggle icon={Bold} onPress={() => editor.toggleBold()} />
-                            <IconToggle icon={Italic} onPress={() => editor.toggleItalic()} />
-                            <IconToggle icon={Underline} onPress={() => editor.toggleUnderline()} />
-                            <IconToggle icon={Strikethrough} onPress={() => editor.toggleStrike()} />
+                            <IconToggle icon={Bold} onPress={() => editor.toggleBold()} isActive={editorState.isBoldActive} />
+                            <IconToggle icon={Italic} onPress={() => editor.toggleItalic()} isActive={editorState.isItalicActive} />
+                            <IconToggle icon={Underline} onPress={() => editor.toggleUnderline()} isActive={editorState.isUnderlineActive} />
+                            <IconToggle icon={Strikethrough} onPress={() => editor.toggleStrike()} isActive={editorState.isStrikeActive} />
                         </View>
 
                         <View style={styles.separator} />
 
                         {/* Row 3: Lists & Align */}
                         <View style={styles.gridRow}>
-                            <IconToggle icon={List} onPress={() => editor.toggleBulletList()} />
-                            <IconToggle icon={ListOrdered} onPress={() => editor.toggleOrderedList()} />
-                            <IconToggle icon={CheckSquare} onPress={() => editor.toggleTaskList()} />
+                            <IconToggle icon={List} onPress={() => { editor.toggleBulletList(); onClose(); }} isActive={editorState.isBulletListActive} />
+                            <IconToggle icon={ListOrdered} onPress={() => { editor.toggleOrderedList(); onClose(); }} isActive={editorState.isOrderedListActive} />
+                            <IconToggle icon={CheckSquare} onPress={() => { editor.toggleTaskList(); onClose(); }} isActive={editorState.isTaskListActive} />
                             <View style={[styles.iconToggle, { backgroundColor: 'transparent' }]} />
                         </View>
+
+                        <View style={styles.separator} />
+
+                        {/* Text Colors */}
+                        <SectionLabel title="Text Highlight" />
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                            {['transparent', '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#a0c4ff', '#bdb2ff'].map(color => (
+                                <TouchableOpacity
+                                    key={color}
+                                    onPress={() => editor.setHighlight(color === 'transparent' ? undefined : color)}
+                                    style={[
+                                        styles.colorCircle,
+                                        { backgroundColor: color === 'transparent' ? 'white' : color },
+                                        color === 'transparent' && { borderWidth: 1, borderColor: '#ccc' }
+                                    ]}
+                                >
+                                    {color === 'transparent' && <View style={styles.slash} />}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <SectionLabel title="Text Color" />
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                            {['#000000', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#64748b'].map(color => (
+                                <TouchableOpacity
+                                    key={color}
+                                    onPress={() => editor.setColor(color)}
+                                    style={[styles.colorCircle, { backgroundColor: color }]}
+                                />
+                            ))}
+                        </ScrollView>
                     </ScrollView>
                 </BlurView>
             </View>
@@ -239,5 +272,19 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: 'rgba(128,128,128,0.1)',
         marginBottom: 16,
+    },
+    colorCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        marginRight: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    slash: {
+        width: '100%',
+        height: 1,
+        backgroundColor: 'red',
+        transform: [{ rotate: '45deg' }],
     }
 });

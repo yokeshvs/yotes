@@ -1,20 +1,23 @@
 import { FontBridge } from '@/components/editor/FontBridge';
+import { useReadyBridge } from '@/components/editor/ReadyBridge';
 import FormatModal from '@/components/FormatModal';
+import { NotePreview } from '@/components/NotePreview';
 import RichTextToolbar from '@/components/RichTextToolbar';
 import { useNotes } from '@/context/NotesContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getContrastColor, isLightColor } from '@/utils/colors';
-import { CoreBridge, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge } from '@10play/tentap-editor';
+import { ColorBridge, CoreBridge, HighlightBridge, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge } from '@10play/tentap-editor';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Check, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, InteractionManager, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NoteDetailScreen() {
-    const { id } = useLocalSearchParams();
+    const { id: rawId } = useLocalSearchParams();
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
     const { notes, updateNote, deleteNote } = useNotes();
     const router = useRouter();
     const { colorScheme } = useTheme();
@@ -26,6 +29,11 @@ export default function NoteDetailScreen() {
     const [title, setTitle] = useState(note?.title || '');
     const [selectedColor, setSelectedColor] = useState(note?.color || '#ffffff');
     const [isDirty, setIsDirty] = useState(false);
+
+    // Twin View State
+    const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+    const [isEditorReady, setIsEditorReady] = useState(true);
+    const editorOpacity = useSharedValue(1);
 
     // Rich Text State
     const [showFormatModal, setShowFormatModal] = useState(false);
@@ -46,13 +54,35 @@ export default function NoteDetailScreen() {
         p.is-editor-empty::before { display: none !important; }
     `;
 
+    // Initialize Ready Bridge
+    const handleEditorReady = useCallback(() => {
+        // RECEIVED SIGNAL
+        console.log("ReadyBridge: Editor Loaded Signal Received");
+        editorOpacity.value = withTiming(1, { duration: 300 });
+        setTimeout(() => setIsPreviewVisible(false), 100);
+        setIsEditorReady(true);
+    }, []);
+
+    // Fallback: If bridge fails, force ready after 1s
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (!isEditorReady) {
+                console.log("ReadyBridge: Fallback Triggered");
+                handleEditorReady();
+            }
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, [isEditorReady, handleEditorReady]);
+
+    const readyBridge = useReadyBridge(handleEditorReady);
+
     // Initialize Rich Text Editor with existing content
     const editor = useEditorBridge({
         autofocus: false,
         avoidIosKeyboard: true,
         initialContent: note?.content || '',
         bridgeExtensions: [
-            ...TenTapStartKit, CoreBridge, PlaceholderBridge, FontBridge
+            ...TenTapStartKit, CoreBridge, PlaceholderBridge, FontBridge, readyBridge, ColorBridge, HighlightBridge
         ],
         theme: {
             webview: { backgroundColor: isDark ? 'black' : '#F5F5F7' },
@@ -66,6 +96,24 @@ export default function NoteDetailScreen() {
         }
     }, [note]);
 
+    // Delay loading the heavy editor until transition is complete
+    useEffect(() => {
+        const task = InteractionManager.runAfterInteractions(() => {
+            // Give a small buffer for the animation to be 100% physically done
+            setTimeout(() => {
+                setIsEditorReady(true);
+            }, 500);
+        });
+
+        return () => task.cancel();
+    }, []);
+
+    // Old timer logic replaced by onMessage handler in RichText
+    // We strictly wait for the webview to tell us it is ready.
+    const editorAnimatedStyle = useAnimatedStyle(() => ({
+        opacity: editorOpacity.value,
+    }));
+
     const extractTagsFromHTML = (html: string): string[] => {
         const plainText = html.replace(/<[^>]+>/g, ' ');
         const matches = plainText.match(/#[\w\u0590-\u05ff]+/g);
@@ -73,18 +121,33 @@ export default function NoteDetailScreen() {
     };
 
     const handleSave = async () => {
-        if (!note) return;
-        const currentContent = await editor.getHTML();
-        const tags = extractTagsFromHTML(currentContent);
+        console.log("Handle Save Clicked");
+        if (!note) {
+            console.error("Note not found during save");
+            Alert.alert("Error", "Note not found");
+            return;
+        }
 
-        updateNote(note.id, {
-            title,
-            content: currentContent,
-            color: selectedColor,
-            tags
-        });
-        setIsDirty(false);
-        router.back();
+        try {
+            console.log("Getting HTML content...");
+            const currentContent = await editor.getHTML();
+            console.log("Content retrieved length:", currentContent?.length);
+
+            const tags = extractTagsFromHTML(currentContent);
+
+            console.log("Updating note:", note.id);
+            updateNote(note.id, {
+                title,
+                content: currentContent,
+                color: selectedColor,
+                tags
+            });
+            setIsDirty(false);
+            router.back();
+        } catch (e) {
+            console.error("Save failed:", e);
+            Alert.alert("Save Error", "Failed to save note");
+        }
     };
 
     const handleDelete = () => {
@@ -165,42 +228,66 @@ export default function NoteDetailScreen() {
                             placeholderTextColor={isDefaultBg ? "gray" : (isLightColor(selectedColor) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)')}
                         />
 
-                        {/* Rich Text Editor */}
-                        <View style={{ flex: 1, minHeight: 400, backgroundColor: selectedColor }}>
-                            {/* NATIVE EXPERIMENT: Simple TextInput for performance test */}
-                            <TextInput 
-                                multiline 
-                                style={{ 
-                                    flex: 1, 
-                                    fontSize: 17, 
-                                    lineHeight: 24, 
-                                    color: effectiveTextColor,
-                                    textAlignVertical: 'top' 
-                                }}
-                                value={editor.getHTML ? "Native TextKit Test\n\nTransition should be instant." : ""} 
-                                editable={false}
-                            />
-                            {/* 
-                            <RichText
-                                editor={editor}
-                                style={{ backgroundColor: 'transparent' }}
-                                injectedJavaScript={`...`}
-                            /> 
-                            */}
+                        {/* Editor Container */}
+                        <View style={{ flex: 1, minHeight: 400, backgroundColor: selectedColor, position: 'relative' }}>
+
+                            {/* 1. Static Native Preview (Immediate) */}
+                            {/* We keep this visible until editor fully opaque. */}
+                            {isPreviewVisible && (
+                                <TouchableOpacity
+                                    activeOpacity={1}
+                                    onPress={handleEditorReady}
+                                    style={[StyleSheet.absoluteFill, { zIndex: 2 }]}
+                                >
+                                    <NotePreview content={note.content} textColor={effectiveTextColor} />
+                                </TouchableOpacity>
+                            )}
+
+                            {/* 2. Heavy Web Editor (Lazy Loaded) */}
+                            {/* Always render so it can initialize, just hide it until ready */}
+                            <Animated.View style={[{ flex: 1 }, editorAnimatedStyle, { zIndex: 1 }]}>
+                                <RichText
+                                    editor={editor}
+                                    style={{ backgroundColor: 'transparent' }}
+                                    injectedJavaScript={`
+                                            const style = document.createElement('style');
+                                            style.innerHTML = \`
+                                                * { margin: 0; padding: 0; box-sizing: border-box; }
+                                                body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+                                                /* Default Paragraph Styling */
+                                                p { font-size: 17px; line-height: 24px; margin-bottom: 12px; margin-top: 0; }
+                                                p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
+                                                .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
+                                            \`;
+                                            document.head.appendChild(style);
+                                            
+                                            // Send Ready Signal via Bridge
+                                            if (document.readyState === 'complete') {
+                                                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EDITOR_LOADED', payload: null }));
+                                            } else {
+                                                window.addEventListener('load', () => {
+                                                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EDITOR_LOADED', payload: null }));
+                                                });
+                                            }
+                                            true;
+                                        `}
+                                />
+                            </Animated.View>
                         </View>
                     </ScrollView>
 
-                    {/* Rich Text Toolbar (Overlay) */}
                     {/* Rich Text Toolbar (Floating) */}
-                    <RichTextToolbar
-                        editor={editor}
-                        onFormatPress={() => setShowFormatModal(true)}
-                        selectedColor={selectedColor}
-                        onColorSelect={(c) => {
-                            setSelectedColor(c);
-                            setIsDirty(true);
-                        }}
-                    />
+                    {isEditorReady && (
+                        <RichTextToolbar
+                            editor={editor}
+                            onFormatPress={() => setShowFormatModal(true)}
+                            selectedColor={selectedColor}
+                            onColorSelect={(c) => {
+                                setSelectedColor(c);
+                                setIsDirty(true);
+                            }}
+                        />
+                    )}
                 </View>
             </KeyboardAvoidingView>
 

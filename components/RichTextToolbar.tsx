@@ -12,7 +12,28 @@ interface RichTextToolbarProps {
     onColorSelect: (color: string) => void;
 }
 
-const COLORS = ['#ffffff', '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
+const COLORS = [
+    '#ffffff', // White
+    '#ffadad', // Red Light
+    '#ffd6a5', // Orange Light
+    '#fdffb6', // Yellow Light
+    '#caffbf', // Green Light
+    '#9bf6ff', // Cyan Light
+    '#a0c4ff', // Blue Light
+    '#bdb2ff', // Purple Light
+    '#ffc6ff', // Pink Light
+    '#e0e0e0', // Gray Light
+    '#ffcfd2', // Salmon
+    '#fde4cf', // Peach
+    '#fbf8cc', // Lemon
+    '#b9fbc0', // Mint
+    '#98f5e1', // Aqua
+    '#8eecf5', // Sky
+    '#90dbf4', // Blue
+    '#a3c4f3', // Periwinkle
+    '#cfbaf0', // Lilac
+    '#f1c0e8', // Rose
+];
 
 export default function RichTextToolbar({ editor, onFormatPress, selectedColor, onColorSelect }: RichTextToolbarProps) {
     const { colorScheme } = useTheme();
@@ -160,15 +181,15 @@ export default function RichTextToolbar({ editor, onFormatPress, selectedColor, 
 
                                     <View style={[styles.separator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
 
-                                    <ToolbarButton icon={Bold} action={() => editor.toggleBold()} isActive={editorState.isBold} />
-                                    <ToolbarButton icon={Italic} action={() => editor.toggleItalic()} isActive={editorState.isItalic} />
-                                    <ToolbarButton icon={Underline} action={() => editor.toggleUnderline()} isActive={editorState.isUnderline} />
-                                    <ToolbarButton icon={Strikethrough} action={() => editor.toggleStrike()} isActive={editorState.isStrike} />
+                                    <ToolbarButton icon={Bold} action={() => editor.toggleBold()} isActive={editorState.isBoldActive} />
+                                    <ToolbarButton icon={Italic} action={() => editor.toggleItalic()} isActive={editorState.isItalicActive} />
+                                    <ToolbarButton icon={Underline} action={() => editor.toggleUnderline()} isActive={editorState.isUnderlineActive} />
+                                    <ToolbarButton icon={Strikethrough} action={() => editor.toggleStrike()} isActive={editorState.isStrikeActive} />
 
                                     <View style={[styles.separator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
 
-                                    <ToolbarButton icon={List} action={() => editor.toggleBulletList()} isActive={editorState.isBulletList} />
-                                    <ToolbarButton icon={CheckSquare} action={() => editor.toggleTaskList()} isActive={editorState.isTaskList} />
+                                    <ToolbarButton icon={List} action={() => editor.toggleBulletList()} isActive={editorState.isBulletListActive} />
+                                    <ToolbarButton icon={CheckSquare} action={() => editor.toggleTaskList()} isActive={editorState.isTaskListActive} />
 
                                     <View style={[styles.separator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
 

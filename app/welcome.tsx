@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
-import React from 'react';
 import { Image, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,7 +25,7 @@ export default function WelcomeScreen() {
             <View className="items-center mb-10">
                 <Image
                     source={require('../assets/header_logo_brand.png')}
-                    style={{ width: 360, height: 120, resizeMode: 'contain' }}
+                    style={{ width: 612, height: 204, resizeMode: 'contain' }}
                 />
             </View>
 

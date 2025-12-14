@@ -70,7 +70,12 @@ export function NoteCard({ id, title, content, date, color, isPinned, isSelectio
                     )}
 
                     <Text style={[styles.content, { color: contentColor }]} numberOfLines={6}>
-                        {content.replace(/<[^>]+>/g, '')}
+                        {content
+                            .replace(/<\/p>/gi, '\n')
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<\/div>/gi, '\n')
+                            .replace(/<[^>]+>/g, '')
+                            .trim()}
                     </Text>
                 </View>
                 <View>

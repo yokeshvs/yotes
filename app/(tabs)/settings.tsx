@@ -5,7 +5,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check, Moon, Smartphone, Sun, Trash2 } from 'lucide-react-native';
-import React from 'react';
 import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -81,11 +80,13 @@ export default function SettingsScreen() {
                                     {
                                         text: "Reset",
                                         style: "destructive",
-                                        onPress: () => {
-                                            onPress: async () => {
+                                        onPress: async () => {
+                                            try {
                                                 await AsyncStorage.removeItem('hasOnboarded');
                                                 clearAllNotes(); // Clears savedNotes
                                                 router.replace('/welcome');
+                                            } catch (e) {
+                                                console.error('Reset failed', e);
                                             }
                                         }
                                     }

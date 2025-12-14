@@ -4,15 +4,14 @@ import RichTextToolbar from '@/components/RichTextToolbar';
 import { useNotes } from '@/context/NotesContext';
 import { useTheme } from '@/context/ThemeContext';
 import { getContrastColor, isLightColor } from '@/utils/colors';
-import { CoreBridge, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge } from '@10play/tentap-editor';
+import { ColorBridge, CoreBridge, HighlightBridge, PlaceholderBridge, RichText, TenTapStartKit, useEditorBridge } from '@10play/tentap-editor';
+
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const COLORS = ['#ffffff', '#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
 
 export default function NewNoteScreen() {
     const router = useRouter();
@@ -25,30 +24,11 @@ export default function NewNoteScreen() {
     const [selectedColor, setSelectedColor] = useState('#ffffff');
     const [showFormatModal, setShowFormatModal] = useState(false);
 
-    // Default CSS to match system appearance
-    const whiteModeCSS = `
-        body { background-color: #F5F5F7; color: #000000; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        * { outline: none; }
-        p { margin-bottom: 0.5em; line-height: 1.5; }
-        /* Hide Tiptap Placeholder Aggressively */
-        .ProseMirror p.is-editor-empty:first-child::before { content: none !important; display: none !important; }
-        p.is-editor-empty::before { display: none !important; }
-    `;
-    const darkModeCSS = `
-        body { background-color: #000000; color: #ffffff; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-        * { outline: none; }
-        p { margin-bottom: 0.5em; line-height: 1.5; }
-        /* Hide Tiptap Placeholder Aggressively */
-        .ProseMirror p.is-editor-empty:first-child::before { content: none !important; display: none !important; }
-        p.is-editor-empty::before { display: none !important; }
-    `;
-
     // Initialize Rich Text Editor
     const editor = useEditorBridge({
-        autofocus: true,
+        autofocus: false,
         avoidIosKeyboard: true,
-        initialContent: '<h1></h1><p></p>',
-        bridgeExtensions: [...TenTapStartKit, CoreBridge, PlaceholderBridge, FontBridge],
+        bridgeExtensions: [...TenTapStartKit, CoreBridge, PlaceholderBridge, FontBridge, ColorBridge, HighlightBridge],
         theme: {
             webview: { backgroundColor: isDark ? 'black' : '#F5F5F7' },
         }
@@ -91,8 +71,13 @@ export default function NewNoteScreen() {
         ? (isDark ? '#ffffff' : '#000000')
         : getContrastColor(selectedColor);
 
+    // If default white is selected, adapt to dark mode (black). Otherwise use selection.
+    const effectiveBackgroundColor = isDefaultBg
+        ? (isDark ? '#000000' : '#ffffff')
+        : selectedColor;
+
     return (
-        <View style={[styles.container, { backgroundColor: selectedColor }]}>
+        <View style={[styles.container, { backgroundColor: effectiveBackgroundColor }]}>
             <StatusBar style={isDefaultBg ? (isDark ? 'light' : 'dark') : (isLightColor(selectedColor) ? 'dark' : 'light')} />
             {/* Header */}
             <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -134,7 +119,7 @@ export default function NewNoteScreen() {
 
                         {/* Rich Text Editor */}
                         {/* We apply a wrapper style to make it seamless */}
-                        <View style={{ flex: 1, minHeight: 400, backgroundColor: selectedColor }}>
+                        <View style={{ flex: 1, minHeight: 400, backgroundColor: effectiveBackgroundColor }}>
                             <RichText
                                 editor={editor}
                                 style={{ backgroundColor: 'transparent' }} // Ensure WebView doesn't have its own white bg if possible
@@ -262,6 +247,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 16,
         paddingHorizontal: 0,
-        // Removed marginTop
+        paddingVertical: 10,
+        lineHeight: 40,
     },
 });
