@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export interface Note {
     id: string;
@@ -8,6 +8,7 @@ export interface Note {
     color: string;
     tags: string[];
     title: string;
+    isPinned?: boolean;
 }
 
 interface NotesContextType {
@@ -15,17 +16,25 @@ interface NotesContextType {
     addNote: (note: Omit<Note, 'id' | 'date'>) => void;
     updateNote: (id: string, updates: Partial<Note>) => void;
     deleteNote: (id: string) => void;
+    deleteNotes: (ids: string[]) => void;
+    togglePin: (id: string) => void;
+    clearAllNotes: () => void;
     allTags: string[];
     searchQuery: string;
     setSearchQuery: (query: string) => void;
 }
 
+/**
+ * NotesContext
+ * 
+ * Manages the global state of user notes, including creation, updates, and deletion.
+ * - Persistence: Automatically saves notes to AsyncStorage whenever they change.
+ * - Search: Exposure of shared search query state.
+ * - Tags: Derives a list of all unique tags from the current notes.
+ */
 const NotesContext = createContext<NotesContextType | undefined>(undefined);
 
-export const MOCK_NOTES_INITIAL: Note[] = [
-    { id: '1', title: 'Start of a new journey', date: '6th Dec 2025', content: "Just setting up my new notes app. #Personal #Ideas", color: '#e9d5ff', tags: ['#Personal', '#Ideas'] },
-    { id: '2', title: 'Work Meeting', date: '6th Dec 2025', content: "Discussing Q1 goals and glassmorphism designs. #work", color: '#d9f99d', tags: ['#work'] },
-];
+export const MOCK_NOTES_INITIAL: Note[] = [];
 
 export function NotesProvider({ children }: { children: ReactNode }) {
     const [notes, setNotes] = useState<Note[]>([]);
@@ -36,9 +45,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
             try {
                 const saved = await AsyncStorage.getItem('savedNotes');
                 if (saved) {
-                    setNotes(JSON.parse(saved));
-                } else {
-                    setNotes(MOCK_NOTES_INITIAL);
+                    const parsed = JSON.parse(saved);
+                    // Validate notes to filter out corrupted data (e.g. from previous bugs)
+                    const validNotes = Array.isArray(parsed) ? parsed.filter(n => n && typeof n === 'object' && n.id && n.title !== undefined) : [];
+                    setNotes(validNotes);
                 }
             } catch (e) {
                 console.error("Failed to load notes", e);
@@ -55,9 +65,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
                 console.error("Failed to save notes", e);
             }
         };
-        if (notes.length > 0) {
-            saveNotes();
-        }
+        saveNotes();
     }, [notes]);
 
     const addNote = (newNoteData: Omit<Note, 'id' | 'date'>) => {
@@ -77,10 +85,31 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         setNotes(prev => prev.filter(n => n.id !== id));
     };
 
-    const allTags = ['#All', ...Array.from(new Set(notes.flatMap(n => n.tags)))];
+    const deleteNotes = (ids: string[]) => {
+        setNotes(prev => prev.filter(n => !ids.includes(n.id)));
+    };
+
+    const togglePin = (id: string) => {
+        setNotes(prev => prev.map(n => n.id === id ? { ...n, isPinned: !n.isPinned } : n));
+    };
+
+    const clearAllNotes = async () => {
+        try {
+            await AsyncStorage.removeItem('savedNotes');
+            setNotes([]);
+        } catch (e) {
+            console.error("Failed to clear notes", e);
+        }
+    };
+
+    // Safe Tag Extraction
+    const allTags = ['All', ...Array.from(new Set(
+        notes.flatMap(n => Array.isArray(n.tags) ? n.tags : [])
+            .filter(tag => tag && typeof tag === 'string' && tag.trim() !== '')
+    )).sort()];
 
     return (
-        <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, allTags, searchQuery, setSearchQuery }}>
+        <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, deleteNotes, togglePin, clearAllNotes, allTags, searchQuery, setSearchQuery }}>
             {children}
         </NotesContext.Provider>
     );

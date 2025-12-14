@@ -1,30 +1,75 @@
-import React, { useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/context/ThemeContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNotes } from '../../context/NotesContext';
 
 export default function TimelineScreen() {
     const { notes } = useNotes();
-    const today = new Date();
-    const [selectedDateStr, setSelectedDateStr] = useState(today.toDateString());
+    const { colorScheme } = useTheme();
+    const isDark = colorScheme === 'dark';
 
-    const dates = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(today);
-        d.setDate(today.getDate() - 3 + i);
-        return {
-            dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
-            dayNum: d.getDate(),
-            fullDateStr: d.toDateString(),
-            fullDateObj: d
-        };
-    });
+    const today = useMemo(() => new Date(), []);
+    const [selectedDate, setSelectedDate] = useState(today);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+
+    const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const flatListRef = useRef<FlatList>(null);
+
+    // Generate a stable date range centered around TODAY
+    // 60 days total: 30 before, 29 after
+    const dates = useMemo(() => {
+        return Array.from({ length: 60 }, (_, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - 30 + i);
+            return {
+                dayName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                dayNum: d.getDate(),
+                fullDateStr: d.toDateString(),
+                fullDateObj: d
+            };
+        });
+    }, [today]);
+
+    const handleDateSelect = (date: Date) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSelectedDate(date);
+    };
+
+    // Scroll to the selected date when the component mounts or dates change
+    useEffect(() => {
+        const selectedIndex = dates.findIndex(d => d.fullDateStr === selectedDate.toDateString());
+        if (selectedIndex !== -1) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToIndex({ index: selectedIndex, animated: true, viewPosition: 0.5 });
+            }, 100);
+        }
+    }, [dates, selectedDate]);
+
+    // Enable LayoutAnimation for Android
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+
+    const onDateChange = (event: any, date?: Date) => {
+        if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+            if (date) {
+                handleDateSelect(date);
+            }
+        }
+    };
 
     const timelineData = notes
         .filter(note => {
             const noteTimestamp = parseInt(note.id);
             if (!isNaN(noteTimestamp) && noteTimestamp > 0) {
                 const noteDate = new Date(noteTimestamp);
-                return noteDate.toDateString() === selectedDateStr;
+                return noteDate.toDateString() === selectedDate.toDateString();
             }
             return false;
         })
@@ -41,99 +86,308 @@ export default function TimelineScreen() {
             };
         });
 
-    const currentDisplayDate = new Date(selectedDateStr);
-
     return (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
-            <SafeAreaView style={styles.safeArea}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.timeText}>9:41</Text>
-                    <View style={styles.cameraNotch}>
-                        <View style={styles.notchInner} />
-                    </View>
-                </View>
+        <View style={styles.container} className="bg-[#F5F5F7] dark:bg-black">
+            {/* Main Content Layer */}
+            <View style={{ flex: 1, paddingTop: insets.top, paddingHorizontal: 24, zIndex: 1 }}>
 
-                {/* Title & Month */}
+                {/* Header Title */}
                 <View style={styles.titleContainer}>
-                    <Text style={styles.titleText}>Timeline</Text>
-                    <View style={styles.monthPill}>
-                        <Text style={styles.monthText}>
-                            {currentDisplayDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                        </Text>
-                    </View>
+                    <Text style={styles.titleText} className="text-gray-900 dark:text-white">Timeline</Text>
                 </View>
 
-                {/* Calendar Strip */}
+                {/* Scrollable Calendar Strip */}
                 <View style={styles.stripContainer}>
-                    {dates.map((item) => {
-                        const isSelected = item.fullDateStr === selectedDateStr;
-                        return (
-                            <TouchableOpacity
-                                key={item.fullDateStr}
-                                onPress={() => setSelectedDateStr(item.fullDateStr)}
-                                style={[
-                                    styles.dateButton,
-                                    isSelected ? styles.dateButtonSelected : styles.dateButtonInactive
-                                ]}
-                            >
-                                <Text style={[styles.dayName, isSelected && styles.textSelected]}>{item.dayName}</Text>
-                                <Text style={[styles.dayNum, isSelected && styles.textSelected]}>{item.dayNum}</Text>
-                                {isSelected && <View style={styles.dot} />}
-                            </TouchableOpacity>
-                        )
-                    })}
+                    <FlatList
+                        ref={flatListRef}
+                        data={dates}
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingRight: 24 }}
+                        keyExtractor={(item) => item.fullDateStr}
+                        initialScrollIndex={30} // Center on Today (index 30 of 60)
+                        getItemLayout={(data, index) => (
+                            { length: 60, offset: 60 * index, index }
+                        )}
+                        onScrollToIndexFailed={info => {
+                            const wait = new Promise(resolve => setTimeout(resolve, 500));
+                            wait.then(() => {
+                                flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+                            });
+                        }}
+                        renderItem={({ item }) => {
+                            const isSelected = item.fullDateStr === selectedDate.toDateString();
+
+                            // Get colors of notes for this day
+                            const dayNoteColors = notes
+                                .filter(note => {
+                                    const noteTimestamp = parseInt(note.id);
+                                    if (!isNaN(noteTimestamp)) {
+                                        const d = new Date(noteTimestamp);
+                                        return d.toDateString() === item.fullDateStr;
+                                    }
+                                    return false;
+                                })
+                                .map(n => n.color)
+                                .filter((c, i, arr) => arr.indexOf(c) === i) // Unique colors
+                                .slice(0, 3); // Limit to 3 dots
+
+                            return (
+                                <TouchableOpacity
+                                    onPress={() => handleDateSelect(item.fullDateObj)}
+                                    style={{ marginRight: 10 }}
+                                    activeOpacity={0.7}
+                                >
+                                    {isSelected ? (
+                                        // Selected: Vibrant Liquid Pill
+                                        <View
+                                            style={[
+                                                styles.dateButton,
+                                                {
+                                                    backgroundColor: '#b8e82a',
+                                                    shadowColor: '#b8e82a',
+                                                    shadowOffset: { width: 0, height: 4 },
+                                                    shadowOpacity: 0.3,
+                                                    shadowRadius: 8,
+                                                    elevation: 6
+                                                }
+                                            ]}
+                                        >
+                                            <Text style={[styles.dayName, { color: 'black', fontWeight: '600' }]}>{item.dayName}</Text>
+                                            <Text style={[styles.dayNum, { color: 'black', fontWeight: 'bold', fontSize: 22 }]}>{item.dayNum}</Text>
+
+                                            {/* Colored Note Indicators */}
+                                            <View className="absolute bottom-2 flex-row gap-1">
+                                                {dayNoteColors.map((color, index) => (
+                                                    <View
+                                                        key={index}
+                                                        style={{ backgroundColor: 'black' }}
+                                                        className={`w-1.5 h-1.5 rounded-full ${color === '#ffffff' ? 'border border-gray-300' : ''}`}
+                                                    />
+                                                ))}
+                                            </View>
+                                        </View>
+                                    ) : (
+                                        // Unselected: consistent Liquid Glass Look
+                                        <BlurView
+                                            intensity={80} // Increased for stronger glass effect
+                                            tint={colorScheme === 'dark' ? 'dark' : 'light'}
+                                            style={[
+                                                styles.dateButton,
+                                                {
+                                                    overflow: 'hidden',
+                                                    backgroundColor: isDark ? 'rgba(39, 39, 42, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+                                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.5)',
+                                                    borderWidth: 1
+                                                }
+                                            ]}
+                                        >
+                                            <Text style={styles.dayName} className="text-gray-500 dark:text-gray-400">{item.dayName}</Text>
+                                            <Text style={styles.dayNum} className="text-gray-900 dark:text-white font-bold">{item.dayNum}</Text>
+
+                                            {/* Colored Note Indicators */}
+                                            <View className="absolute bottom-2 flex-row gap-1">
+                                                {dayNoteColors.map((color, index) => (
+                                                    <View
+                                                        key={index}
+                                                        style={{ backgroundColor: color }}
+                                                        className={`w-1.5 h-1.5 rounded-full ${color === '#ffffff' ? 'border border-gray-300 dark:border-zinc-600' : ''}`}
+                                                    />
+                                                ))}
+                                            </View>
+                                        </BlurView>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
                 </View>
 
-                {/* Schedule Title */}
-                <Text style={styles.scheduleTitle}>
-                    {selectedDateStr === today.toDateString() ? "Today's Schedule" : `${currentDisplayDate.toLocaleDateString('en-US', { weekday: 'long' })}'s Schedule`}
+                <Text style={styles.scheduleTitle} className="text-gray-900 dark:text-white">
+                    {selectedDate.toDateString() === today.toDateString() ? "Today's Timeline" : `${selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}'s Timeline`}
                 </Text>
 
                 {/* Timeline List (ScrollView) */}
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 180 }}>
                     <View style={styles.listContainer}>
                         {/* Vertical Line */}
-                        <View style={styles.verticalLine} />
+                        <View style={styles.verticalLine} className="bg-gray-200 dark:bg-zinc-800" />
 
                         {timelineData.length > 0 ? (
-                            timelineData.map(item => (
-                                <View key={item.id} style={styles.eventRow}>
-                                    <View style={styles.timeColumn} />
-                                    <View style={styles.timelineDot} />
-                                    <View style={[styles.eventCard, { backgroundColor: item.color || '#fff' }]}>
-                                        <View style={styles.eventHeader}>
-                                            <Text style={styles.eventTitle} numberOfLines={1}>{item.title}</Text>
-                                            <View style={styles.timeTag}>
-                                                <Text style={styles.timeTagText}>{item.time}</Text>
+                            timelineData.map(item => {
+                                // Adaptive color logic for events (same as NoteCard)
+                                const isDefaultWhite = item.color === '#ffffff' || item.color === '#fff';
+                                const itemBg = (isDark && isDefaultWhite) ? '#18181b' : item.color;
+                                const itemTextColor = (isDark && isDefaultWhite) ? '#ffffff' : '#111827';
+                                const itemContentColor = (isDark && isDefaultWhite) ? '#9ca3af' : '#374151';
+                                const itemBorderColor = (isDark && isDefaultWhite) ? '#27272a' : 'transparent';
+
+                                return (
+                                    <View key={item.id} style={styles.eventRow}>
+                                        <View style={styles.timeColumn} />
+                                        <View style={[styles.timelineDot, { borderColor: item.color || '#9ca3af' }]} className="bg-white dark:bg-zinc-900" />
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.eventCard,
+                                                {
+                                                    backgroundColor: itemBg,
+                                                    borderColor: itemBorderColor,
+                                                    borderWidth: isDark ? 1 : 0
+                                                }
+                                            ]}
+                                            onPress={() => router.push(`/note/${item.id}`)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <View style={styles.eventHeader}>
+                                                <Text style={[styles.eventTitle, { color: itemTextColor }]} numberOfLines={1}>{item.title}</Text>
+                                                <View style={styles.timeTag}>
+                                                    <Text style={styles.timeTagText}>{item.time}</Text>
+                                                </View>
                                             </View>
-                                        </View>
-                                        <Text style={styles.eventContent} numberOfLines={4}>{item.content}</Text>
+                                            <Text style={[styles.eventContent, { color: itemContentColor }]} numberOfLines={4}>{item.content.replace(/<[^>]+>/g, '')}</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                </View>
-                            ))
+                                );
+                            })
                         ) : (
                             <View style={[styles.eventRow, { opacity: 0.7 }]}>
                                 <View style={styles.timeColumn} />
-                                <View style={[styles.timelineDot, { backgroundColor: '#d1d5db' }]} />
-                                <View style={styles.emptyCard}>
-                                    <Text style={styles.emptyText}>No notes for this day</Text>
+                                <View style={[styles.timelineDot]} className="bg-gray-300 dark:bg-zinc-700" />
+                                <View style={styles.emptyCard} className="border-gray-300 dark:border-zinc-700">
+                                    <Text style={styles.emptyText} className="text-gray-500 dark:text-gray-400">No notes for this day</Text>
                                 </View>
                             </View>
                         )}
 
                         <View style={[styles.eventRow, { opacity: 0.5 }]}>
                             <View style={styles.timeColumn} />
-                            <View style={[styles.timelineDot, { backgroundColor: '#d1d5db' }]} />
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.endText}>End of timeline</Text>
+                            <View style={[styles.timelineDot]} className="bg-gray-300 dark:bg-zinc-700" />
+                            <View style={styles.emptyCard} className="border-gray-300 dark:border-zinc-700">
+                                <Text style={styles.endText} className="text-gray-400 dark:text-gray-500">End of timeline</Text>
                             </View>
                         </View>
                     </View>
                 </ScrollView>
 
-            </SafeAreaView>
+            </View>
+
+            {/* --- SEPARATE LAYERS (Root Level) --- */}
+
+            {/* 1. Backdrop Overlay (Below Capsule, Above Content) */}
+            {showDatePicker && (
+                <TouchableOpacity
+                    style={[StyleSheet.absoluteFill, { zIndex: 50, backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)' }]}
+                    activeOpacity={1}
+                    onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+                        setShowDatePicker(false);
+                    }}
+                >
+                    {/* Add blur to backdrop for "Focus" effect */}
+                    <BlurView intensity={10} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+                </TouchableOpacity>
+            )}
+
+            {/* 2. Floating "Hanging" Capsule (Top Right) */}
+            <View
+                style={{
+                    position: 'absolute',
+                    top: insets.top + 10,
+                    right: 24,
+                    zIndex: 100,
+                    alignItems: 'flex-end',
+                    // Ensure shadow isn't clipped
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 8,
+                    elevation: 4,
+                }}
+                pointerEvents="box-none" // Allow touches to pass through empty space if needed (though View wraps content)
+            >
+                <TouchableOpacity
+                    onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+                        setShowDatePicker(!showDatePicker);
+                    }}
+                    activeOpacity={0.9}
+                    style={{ borderRadius: 24 }} // Match inner border radius for shadow path
+                >
+                    <BlurView
+                        intensity={95} // High intensity for solid glass feel
+                        tint={colorScheme === 'dark' ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
+                        style={{
+                            overflow: 'hidden',
+                            borderRadius: 24,
+                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.4)',
+                            borderWidth: 1,
+                        }}
+                    >
+                        {/* Header / Collapsed State */}
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 16,
+                            paddingVertical: 10,
+                            justifyContent: 'space-between',
+                            minWidth: showDatePicker ? 320 : 'auto'
+                        }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Text style={{
+                                    fontSize: 14,
+                                    fontWeight: '600',
+                                    color: isDark ? 'white' : 'black',
+                                    fontVariant: ['tabular-nums']
+                                }}>
+                                    {selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                </Text>
+                            </View>
+
+                            {showDatePicker && (
+                                <TouchableOpacity onPress={() => {
+                                    LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+                                    setShowDatePicker(false);
+                                }}>
+                                    <Text style={{ color: '#b8e82a', fontWeight: 'bold' }}>Done</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Expanded Content */}
+                        {showDatePicker && (
+                            <View style={{ padding: 10 }}>
+                                {Platform.OS === 'ios' ? (
+                                    <DateTimePicker
+                                        value={selectedDate}
+                                        mode="date"
+                                        display="inline"
+                                        onChange={(e, d) => {
+                                            if (d) handleDateSelect(d);
+                                        }}
+                                        themeVariant={isDark ? 'dark' : 'light'}
+                                        accentColor="#b8e82a"
+                                        style={{ height: 320 }}
+                                    />
+                                ) : (
+                                    <View style={{ padding: 20, alignItems: 'center' }}>
+                                        <Text style={{ color: isDark ? 'white' : 'black' }}>Tap to open calendar</Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+                    </BlurView>
+                </TouchableOpacity>
+            </View>
+
+            {/* Android Trigger Hook */}
+            {Platform.OS === 'android' && showDatePicker && (
+                <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                />
+            )}
         </View>
     );
 }
@@ -141,116 +395,72 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F5F7',
-    },
-    safeArea: {
-        flex: 1,
-        paddingHorizontal: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-        paddingTop: 8,
-    },
-    timeText: {
-        color: '#6b7280',
-        fontSize: 14,
-    },
-    cameraNotch: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#d1d5db',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.5)',
-    },
-    notchInner: {
-        width: 16,
-        height: 8,
-        borderRadius: 9999,
-        borderWidth: 1,
-        borderColor: '#9ca3af',
+        // backgroundColor handled by className
     },
     titleContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 24,
+        marginTop: 10,
     },
     titleText: {
         fontSize: 30,
         fontWeight: 'bold',
-        color: '#111827',
+        // color handled by className
     },
     monthPill: {
-        backgroundColor: '#fff',
+        // backgroundColor handled by className
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderRadius: 9999,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        // borderColor handled by className
         flexDirection: 'row',
         alignItems: 'center',
     },
     monthText: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#374151',
+        // color handled by className
     },
     stripContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
         marginBottom: 32,
+        height: 85,
     },
     dateButton: {
         alignItems: 'center',
         justifyContent: 'center',
-        width: 44,
+        width: 50,
         height: 80,
         borderRadius: 16,
-        borderWidth: 1,
+        // borderWidth removed for glass look
+        // marginRight removed, handled by parent
     },
-    dateButtonSelected: {
-        backgroundColor: '#a3e635',
-        borderColor: '#a3e635',
-        shadowColor: '#a3e635',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-        elevation: 4,
-    },
-    dateButtonInactive: {
-        backgroundColor: 'rgba(255,255,255,0.4)',
-        borderColor: 'rgba(255,255,255,0.6)',
-    },
+    // dateButtonSelected/Inactive removed or handled inline if needed, but keeping for shape/shadow logic if not colored
+    // Actually dateButtonSelected has colors. Let's rely on inline className for colors.
+
     dayName: {
         fontSize: 12,
         marginBottom: 8,
-        color: '#6b7280',
+        // color handled by className
     },
     dayNum: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#1f2937',
-    },
-    textSelected: {
-        color: '#000',
+        // color handled by className
     },
     dot: {
         width: 4,
         height: 4,
-        backgroundColor: '#000',
+        // backgroundColor handled by className
         borderRadius: 2,
         marginTop: 4,
     },
     scheduleTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#111827',
+        // color handled by className
         marginBottom: 16,
     },
     listContainer: {
@@ -263,7 +473,7 @@ const styles = StyleSheet.create({
         top: 16,
         bottom: 0,
         width: 2,
-        backgroundColor: 'rgba(229,231,235,0.8)',
+        // backgroundColor handled by className
     },
     eventRow: {
         flexDirection: 'row',
@@ -283,17 +493,16 @@ const styles = StyleSheet.create({
         width: 12,
         height: 12,
         borderRadius: 6,
-        backgroundColor: '#fff',
+        // backgroundColor handled by className
         borderWidth: 2,
-        borderColor: '#9ca3af',
+        // borderColor handled by className/inline
         zIndex: 10,
     },
     eventCard: {
         flex: 1,
         padding: 20,
         borderRadius: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.6)',
+        // borderWidth/Color handled inline
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -306,7 +515,7 @@ const styles = StyleSheet.create({
     },
     eventTitle: {
         fontWeight: 'bold',
-        color: '#111827',
+        // color handled inline
         fontSize: 18,
         flex: 1,
         marginRight: 8,
@@ -325,7 +534,7 @@ const styles = StyleSheet.create({
         color: '#374151',
     },
     eventContent: {
-        color: '#374151',
+        // color handled inline
         fontSize: 14,
     },
     emptyCard: {
@@ -333,17 +542,17 @@ const styles = StyleSheet.create({
         padding: 20,
         borderRadius: 24,
         borderWidth: 2,
-        borderColor: '#d1d5db',
+        // borderColor handled by className
         borderStyle: 'dashed',
         alignItems: 'center',
         justifyContent: 'center',
     },
     emptyText: {
-        color: '#6b7280',
+        // color handled by className
         fontWeight: '500',
     },
     endText: {
-        color: '#9ca3af',
+        // color handled by className
         fontWeight: '500',
     }
 });
