@@ -14,6 +14,7 @@ export default function TimelineScreen() {
 
     const today = useMemo(() => new Date(), []);
     const [selectedDate, setSelectedDate] = useState(today);
+    const [tempDate, setTempDate] = useState(today);
     const [showDatePicker, setShowDatePicker] = useState(false);
 
     const insets = useSafeAreaInsets();
@@ -296,25 +297,30 @@ export default function TimelineScreen() {
                     right: 24,
                     zIndex: 100,
                     alignItems: 'flex-end',
-                    // Ensure shadow isn't clipped
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.1,
                     shadowRadius: 8,
                     elevation: 4,
                 }}
-                pointerEvents="box-none" // Allow touches to pass through empty space if needed (though View wraps content)
+                pointerEvents="box-none"
             >
                 <TouchableOpacity
                     onPress={() => {
                         LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
-                        setShowDatePicker(!showDatePicker);
+                        if (!showDatePicker) {
+                            setTempDate(selectedDate); // Init temp date on open
+                            setShowDatePicker(true);
+                        } else {
+                            setShowDatePicker(false);
+                            // No commit on toggle close (cancel behavior)
+                        }
                     }}
                     activeOpacity={0.9}
-                    style={{ borderRadius: 24 }} // Match inner border radius for shadow path
+                    style={{ borderRadius: 24 }}
                 >
                     <BlurView
-                        intensity={95} // High intensity for solid glass feel
+                        intensity={95}
                         tint={colorScheme === 'dark' ? 'systemChromeMaterialDark' : 'systemChromeMaterialLight'}
                         style={{
                             overflow: 'hidden',
@@ -339,13 +345,14 @@ export default function TimelineScreen() {
                                     color: isDark ? 'white' : 'black',
                                     fontVariant: ['tabular-nums']
                                 }}>
-                                    {selectedDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                    {(showDatePicker ? tempDate : selectedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                                 </Text>
                             </View>
 
                             {showDatePicker && (
                                 <TouchableOpacity onPress={() => {
                                     LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
+                                    handleDateSelect(tempDate); // Commit temp date
                                     setShowDatePicker(false);
                                 }}>
                                     <Text style={{ color: '#b8e82a', fontWeight: 'bold' }}>Done</Text>
@@ -358,11 +365,11 @@ export default function TimelineScreen() {
                             <View style={{ padding: 10 }}>
                                 {Platform.OS === 'ios' ? (
                                     <DateTimePicker
-                                        value={selectedDate}
+                                        value={tempDate}
                                         mode="date"
                                         display="inline"
                                         onChange={(e, d) => {
-                                            if (d) handleDateSelect(d);
+                                            if (d) setTempDate(d); // Update temp only
                                         }}
                                         themeVariant={isDark ? 'dark' : 'light'}
                                         accentColor="#b8e82a"

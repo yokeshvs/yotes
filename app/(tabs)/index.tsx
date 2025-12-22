@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { useNavigation, useRouter } from 'expo-router';
 import { Pin, Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotesScreen() {
@@ -120,7 +120,7 @@ export default function NotesScreen() {
             style={{ opacity: isSelectionMode ? 0 : 1 }}
             pointerEvents={isSelectionMode ? 'none' : 'auto'}
           >
-            <View className="flex-row justify-center items-center mt-2" style={{ marginBottom: 0 }}>
+            <View className="flex-row justify-center items-center mt-2" style={{ marginBottom: 0, marginTop: Platform.OS === 'ios' ? 40 : 10 }}>
               <View className="items-center justify-center">
                 <Image
                   source={require('../../assets/header_logo_brand.png')}

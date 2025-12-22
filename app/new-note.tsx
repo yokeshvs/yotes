@@ -27,7 +27,7 @@ export default function NewNoteScreen() {
     // Initialize Rich Text Editor
     const editor = useEditorBridge({
         autofocus: false,
-        avoidIosKeyboard: true,
+        avoidIosKeyboard: false, // We handle this manually with KeyboardAvoidingView
         bridgeExtensions: [...TenTapStartKit, CoreBridge, PlaceholderBridge, FontBridge, ColorBridge, HighlightBridge],
         theme: {
             webview: { backgroundColor: isDark ? 'black' : '#F5F5F7' },
@@ -100,12 +100,12 @@ export default function NewNoteScreen() {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0} // Adjust offset if needed
+                keyboardVerticalOffset={0}
             >
-                <View style={{ flex: 1, position: 'relative' }}>
+                <View style={{ flex: 1 }}>
                     <ScrollView
                         style={styles.contentContainer}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }} // Add extra padding for Toolbar
+                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }} // Increased bottom padding for toolbar space
                     >
                         {/* Title Input */}
                         <TextInput
@@ -146,17 +146,15 @@ export default function NewNoteScreen() {
                         </View>
                     </ScrollView>
 
-                    {/* Rich Text Toolbar (Overlay) */}
+                    {/* Rich Text Toolbar (Floating INSIDE formatting context) */}
+                    <RichTextToolbar
+                        editor={editor}
+                        selectedColor={selectedColor}
+                        onColorSelect={setSelectedColor}
+                        onFormatPress={() => setShowFormatModal(true)}
+                    />
                 </View>
             </KeyboardAvoidingView>
-
-            {/* Rich Text Toolbar (Floating) */}
-            <RichTextToolbar
-                editor={editor}
-                selectedColor={selectedColor}
-                onColorSelect={setSelectedColor}
-                onFormatPress={() => setShowFormatModal(true)}
-            />
 
             <FormatModal
                 visible={showFormatModal}

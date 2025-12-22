@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     expandedCapsule: {
         height: 50,
         paddingHorizontal: 8,
-        maxWidth: 320, // Constrain width so scrolling happens
+        maxWidth: 600, // Increased to allow full width on iPad/Larger phones
         width: '100%', // Take up to maxWidth
     },
     collapsedButton: {

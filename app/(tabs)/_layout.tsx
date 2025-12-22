@@ -1,7 +1,6 @@
 import { useTheme } from '@/context/ThemeContext';
 import { useRouter } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
 
 export default function TabLayout() {
   // Configures the Tab Layout
