@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { useNavigation, useRouter } from 'expo-router';
 import { Pin, Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Image, Platform, ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Alert, Image, ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotesScreen() {
@@ -110,32 +110,42 @@ export default function NotesScreen() {
   return (
     <View style={{ flex: 1 }} className="bg-[#F2F2F7] dark:bg-black">
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
-      <SafeAreaView style={{ flex: 1, paddingHorizontal: 24 }} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
 
-        {/* Header Container - Preserves Height */}
-        <View className="relative z-10">
+        {/* Main ScrollView with Sticky Filters */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[1]} // Index 1 is the Filter View
+          contentContainerStyle={{ paddingBottom: 100 }} // Bottom spacer
+          keyboardDismissMode="on-drag"
+        >
 
-          {/* Normal Header Content - Always Rendered for Spacer, Hidden visually in Selection Mode */}
+          {/* 0. Logo Header (Scrolls away) */}
+          {/* Hidden in selection mode to save space/confusion, or keep it? 
+                User wants clean. Let's keep it simple. Only hide if selection mode overlay is active?
+                Actually, standard iOS practice: Header stays or scrolls. 
+                Let's keep it visible but allow scrolling.
+            */}
           <View
+            className="items-center justify-center pt-2 pb-0" // Tight spacing
             style={{ opacity: isSelectionMode ? 0 : 1 }}
-            pointerEvents={isSelectionMode ? 'none' : 'auto'}
           >
-            <View className="flex-row justify-center items-center mt-2" style={{ marginBottom: 0, marginTop: Platform.OS === 'ios' ? 40 : 10 }}>
-              <View className="items-center justify-center">
-                <Image
-                  source={require('../../assets/header_logo_brand.png')}
-                  style={{ width: 432, height: 120, resizeMode: 'contain', opacity: 1 }}
-                  className="dark:opacity-80" // Slight dim in dark mode
-                />
-              </View>
-            </View>
+            <Image
+              source={require('../../assets/header_logo_brand.png')}
+              style={{ width: 432, height: 110, resizeMode: 'contain' }}
+              className="dark:opacity-80"
+            />
+          </View>
 
-            {/* Filters */}
+          {/* 1. Filters (Sticky) */}
+          <View
+            className="bg-[#F2F2F7] dark:bg-black z-20 pb-2 pt-0"
+            style={{ opacity: isSelectionMode ? 0 : 1 }}
+          >
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              className="mb-4 flex-grow-0"
-              contentContainerStyle={{ paddingHorizontal: 4, paddingBottom: 15, paddingTop: 0 }}
+              contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}
             >
               {allTags.map((tag) => {
                 const isSelected = selectedFilter === tag;
@@ -144,19 +154,19 @@ export default function NotesScreen() {
                     key={tag}
                     onPress={() => setSelectedFilter(tag)}
                     className={`mr-3 px-6 py-3 rounded-full border shadow-sm items-center justify-center min-w-[80px]
-                        ${isSelected
+                            ${isSelected
                         ? 'bg-[#b8e82a] border-transparent'
-                        : 'bg-white/80 border-white dark:bg-zinc-800 dark:border-zinc-700'
+                        : 'bg-white border-transparent dark:bg-zinc-800'
                       }
-                        `}
+                            `}
                   >
                     <Text
                       className={`font-semibold text-base
-                                ${isSelected
+                                    ${isSelected
                           ? 'text-black'
                           : 'text-gray-600 dark:text-gray-300'
                         }
-                            `}
+                                `}
                     >
                       {tag}
                     </Text>
@@ -166,117 +176,104 @@ export default function NotesScreen() {
             </ScrollView>
           </View>
 
-          {/* Selection Header - Absolute Overlay */}
-          {isSelectionMode && (
-            <View className="absolute inset-0 justify-center px-2">
-              {/* Centered vertically in the header space */}
-              <BlurView
-                intensity={80}
-                tint={colorScheme === 'dark' ? 'dark' : 'light'}
-                className="flex-row justify-between items-center px-6 py-4 rounded-full overflow-hidden shadow-sm bg-white/60 dark:bg-zinc-800/60"
-              >
-                <TouchableOpacity onPress={cancelSelection} hitSlop={10}>
-                  <Text className="text-base font-semibold text-red-500 dark:text-red-400">Cancel</Text>
-                </TouchableOpacity>
+          {/* 2. Notes Grid */}
+          <View className="px-6">
+            <View className="flex-row justify-between">
+              {/* Column 1 */}
+              <View className="w-[48%]">
+                {col1.map(note => (
+                  <NoteCard
+                    key={note.id}
+                    id={note.id}
+                    title={note.title}
+                    content={note.content}
+                    date={note.date}
+                    color={note.color}
+                    isPinned={note.isPinned}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedIds.has(note.id)}
+                    onPress={() => handlePress(note.id)}
+                    onLongPress={() => handleLongPress(note.id)}
+                  />
+                ))}
+              </View>
 
-                <Text className="text-lg font-bold dark:text-white">
-                  {selectedIds.size} Selected
-                </Text>
-
-                <TouchableOpacity onPress={handleSelectAll} hitSlop={10}>
-                  <Text className="text-base font-bold text-[#b8e82a]">
-                    {selectedIds.size === filteredNotes.length ? 'Deselect' : 'Select All'}
-                  </Text>
-                </TouchableOpacity>
-              </BlurView>
-            </View>
-          )}
-        </View>
-
-        {/* Staggered Grid */}
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 180 }} // Extra space for floating bar
-          keyboardDismissMode="on-drag"
-        >
-          <View className="flex-row justify-between">
-            {/* Column 1 */}
-            <View className="w-[48%]">
-              {col1.map(note => (
-                <NoteCard
-                  key={note.id}
-                  id={note.id}
-                  title={note.title}
-                  content={note.content}
-                  date={note.date}
-                  color={note.color}
-                  isPinned={note.isPinned}
-                  isSelectionMode={isSelectionMode}
-                  isSelected={selectedIds.has(note.id)}
-                  onPress={() => handlePress(note.id)}
-                  onLongPress={() => handleLongPress(note.id)}
-                />
-              ))}
+              {/* Column 2 */}
+              <View className="w-[48%]">
+                {col2.map(note => (
+                  <NoteCard
+                    key={note.id}
+                    id={note.id}
+                    title={note.title}
+                    content={note.content}
+                    date={note.date}
+                    color={note.color}
+                    isPinned={note.isPinned}
+                    isSelectionMode={isSelectionMode}
+                    isSelected={selectedIds.has(note.id)}
+                    onPress={() => handlePress(note.id)}
+                    onLongPress={() => handleLongPress(note.id)}
+                  />
+                ))}
+              </View>
             </View>
 
-            {/* Column 2 */}
-            <View className="w-[48%]">
-              {col2.map(note => (
-                <NoteCard
-                  key={note.id}
-                  id={note.id}
-                  title={note.title}
-                  content={note.content}
-                  date={note.date}
-                  color={note.color}
-                  isPinned={note.isPinned}
-                  isSelectionMode={isSelectionMode}
-                  isSelected={selectedIds.has(note.id)}
-                  onPress={() => handlePress(note.id)}
-                  onLongPress={() => handleLongPress(note.id)}
-                />
-              ))}
-            </View>
+            {filteredNotes.length === 0 && (
+              <View className="mt-10 items-center">
+                <Text className="text-gray-400">No notes found.</Text>
+              </View>
+            )}
           </View>
 
-          {filteredNotes.length === 0 && (
-            <View className="mt-10 items-center">
-              <Text className="text-gray-400">No notes found.</Text>
-            </View>
-          )}
         </ScrollView>
 
-        {/* Floating Glass Action Bar for Selection Mode */}
+        {/* Selection Header Overlay */}
         {isSelectionMode && (
-          // Center the pill at the bottom - Break out of padding with negative margins
-          <View className="absolute bottom-24 items-center" style={{ left: -24, right: -24 }}>
+          <View className="absolute top-0 left-0 right-0 z-50 px-6 pt-2">
+            <BlurView
+              intensity={80}
+              tint={colorScheme === 'dark' ? 'dark' : 'light'}
+              className="flex-row justify-between items-center px-6 py-4 rounded-full overflow-hidden shadow-sm bg-white/60 dark:bg-zinc-800/60"
+            >
+              <TouchableOpacity onPress={cancelSelection} hitSlop={10}>
+                <Text className="text-base font-semibold text-red-500 dark:text-red-400">Cancel</Text>
+              </TouchableOpacity>
+
+              <Text className="text-lg font-bold dark:text-white">
+                {selectedIds.size} Selected
+              </Text>
+
+              <TouchableOpacity onPress={handleSelectAll} hitSlop={10}>
+                <Text className="text-base font-bold text-[#b8e82a]">
+                  {selectedIds.size === filteredNotes.length ? 'Deselect' : 'Select All'}
+                </Text>
+              </TouchableOpacity>
+            </BlurView>
+          </View>
+        )}
+
+        {/* Floating Bottom Action Bar for Selection Mode */}
+        {isSelectionMode && (
+          <View className="absolute bottom-10 left-0 right-0 items-center z-50">
             <BlurView
               intensity={80}
               tint={colorScheme === 'dark' ? 'dark' : 'light'}
               className="flex-row items-center justify-center px-8 py-4 rounded-full overflow-hidden shadow-2xl bg-white/50 dark:bg-zinc-900/50"
-              style={{ gap: 0 }} // Remove gap style, assume manual spacing
             >
-
-              {/* Only show Pin/Unpin if exactly 1 note is selected */}
               {selectedIds.size === 1 && (
                 <>
-                  <TouchableOpacity onPress={handleBatchPin} className="items-center justify-center w-12 h-12 rounded-full active:bg-gray-200/50 dark:active:bg-gray-700/50">
+                  <TouchableOpacity onPress={handleBatchPin} className="items-center justify-center w-12 h-12 rounded-full mr-8 active:bg-gray-200/50 dark:active:bg-gray-700/50">
                     <Pin
                       size={28}
                       color={colorScheme === 'dark' ? 'white' : 'black'}
                       fill={allSelectedPinned ? (colorScheme === 'dark' ? 'white' : 'black') : 'none'}
                     />
                   </TouchableOpacity>
-                  {/* Explicit Spacer for consistent centering */}
-                  <View className="w-8" />
                 </>
               )}
-
-              {/* Delete Button - Always visible */}
               <TouchableOpacity onPress={handleBatchDelete} className="items-center justify-center w-12 h-12 rounded-full active:bg-red-500/20">
                 <Trash2 size={28} color="#ef4444" />
               </TouchableOpacity>
-
             </BlurView>
           </View>
         )}

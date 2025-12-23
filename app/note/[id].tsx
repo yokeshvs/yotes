@@ -11,7 +11,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Check, Trash2 } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, InteractionManager, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, InteractionManager, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -215,80 +215,83 @@ export default function NoteDetailScreen() {
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
-                <View style={{ flex: 1, position: 'relative' }}>
-                    <ScrollView
-                        style={styles.contentContainer}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
-                    >
-                        <TextInput
-                            style={[styles.titleInput, { color: effectiveTextColor }]}
-                            value={title}
-                            onChangeText={(t) => { setTitle(t); setIsDirty(true); }}
-                            placeholder="Title"
-                            placeholderTextColor={isDefaultBg ? "gray" : (isLightColor(selectedColor) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)')}
-                        />
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={{ flex: 1, position: 'relative' }}>
+                        <ScrollView
+                            style={styles.contentContainer}
+                            contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            <TextInput
+                                style={[styles.titleInput, { color: effectiveTextColor }]}
+                                value={title}
+                                onChangeText={(t) => { setTitle(t); setIsDirty(true); }}
+                                placeholder="Title"
+                                placeholderTextColor={isDefaultBg ? "gray" : (isLightColor(selectedColor) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)')}
+                            />
 
-                        {/* Editor Container */}
-                        <View style={{ flex: 1, minHeight: 400, backgroundColor: selectedColor, position: 'relative' }}>
+                            {/* Editor Container */}
+                            <View style={{ flex: 1, minHeight: 400, backgroundColor: selectedColor, position: 'relative' }} onStartShouldSetResponder={() => true}>
 
-                            {/* 1. Static Native Preview (Immediate) */}
-                            {/* We keep this visible until editor fully opaque. */}
-                            {isPreviewVisible && (
-                                <TouchableOpacity
-                                    activeOpacity={1}
-                                    onPress={handleEditorReady}
-                                    style={[StyleSheet.absoluteFill, { zIndex: 2 }]}
-                                >
-                                    <NotePreview content={note.content} textColor={effectiveTextColor} />
-                                </TouchableOpacity>
-                            )}
+                                {/* 1. Static Native Preview (Immediate) */}
+                                {/* We keep this visible until editor fully opaque. */}
+                                {isPreviewVisible && (
+                                    <TouchableOpacity
+                                        activeOpacity={1}
+                                        onPress={handleEditorReady}
+                                        style={[StyleSheet.absoluteFill, { zIndex: 2 }]}
+                                    >
+                                        <NotePreview content={note.content} textColor={effectiveTextColor} />
+                                    </TouchableOpacity>
+                                )}
 
-                            {/* 2. Heavy Web Editor (Lazy Loaded) */}
-                            {/* Always render so it can initialize, just hide it until ready */}
-                            <Animated.View style={[{ flex: 1 }, editorAnimatedStyle, { zIndex: 1 }]}>
-                                <RichText
-                                    editor={editor}
-                                    style={{ backgroundColor: 'transparent' }}
-                                    injectedJavaScript={`
-                                            const style = document.createElement('style');
-                                            style.innerHTML = \`
-                                                * { margin: 0; padding: 0; box-sizing: border-box; }
-                                                body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-                                                /* Default Paragraph Styling */
-                                                p { font-size: 17px; line-height: 24px; margin-bottom: 12px; margin-top: 0; }
-                                                p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
-                                                .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
-                                            \`;
-                                            document.head.appendChild(style);
-                                            
-                                            // Send Ready Signal via Bridge
-                                            if (document.readyState === 'complete') {
-                                                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EDITOR_LOADED', payload: null }));
-                                            } else {
-                                                window.addEventListener('load', () => {
+                                {/* 2. Heavy Web Editor (Lazy Loaded) */}
+                                {/* Always render so it can initialize, just hide it until ready */}
+                                <Animated.View style={[{ flex: 1 }, editorAnimatedStyle, { zIndex: 1 }]}>
+                                    <RichText
+                                        editor={editor}
+                                        style={{ backgroundColor: 'transparent' }}
+                                        injectedJavaScript={`
+                                                const style = document.createElement('style');
+                                                style.innerHTML = \`
+                                                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                                                    body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+                                                    /* Default Paragraph Styling */
+                                                    p { font-size: 17px; line-height: 24px; margin-bottom: 12px; margin-top: 0; }
+                                                    p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
+                                                    .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
+                                                \`;
+                                                document.head.appendChild(style);
+                                                
+                                                // Send Ready Signal via Bridge
+                                                if (document.readyState === 'complete') {
                                                     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EDITOR_LOADED', payload: null }));
-                                                });
-                                            }
-                                            true;
-                                        `}
-                                />
-                            </Animated.View>
-                        </View>
-                    </ScrollView>
+                                                } else {
+                                                    window.addEventListener('load', () => {
+                                                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'EDITOR_LOADED', payload: null }));
+                                                    });
+                                                }
+                                                true;
+                                            `}
+                                    />
+                                </Animated.View>
+                            </View>
+                        </ScrollView>
 
-                    {/* Rich Text Toolbar (Floating) */}
-                    {isEditorReady && (
-                        <RichTextToolbar
-                            editor={editor}
-                            onFormatPress={() => setShowFormatModal(true)}
-                            selectedColor={selectedColor}
-                            onColorSelect={(c) => {
-                                setSelectedColor(c);
-                                setIsDirty(true);
-                            }}
-                        />
-                    )}
-                </View>
+                        {/* Rich Text Toolbar (Floating) */}
+                        {isEditorReady && (
+                            <RichTextToolbar
+                                editor={editor}
+                                onFormatPress={() => setShowFormatModal(true)}
+                                selectedColor={selectedColor}
+                                onColorSelect={(c) => {
+                                    setSelectedColor(c);
+                                    setIsDirty(true);
+                                }}
+                            />
+                        )}
+                    </View>
+                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
 
             {/* Formatting Modal */}

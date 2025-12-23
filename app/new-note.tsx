@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Check } from 'lucide-react-native';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function NewNoteScreen() {
@@ -102,58 +102,61 @@ export default function NewNoteScreen() {
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={0}
             >
-                <View style={{ flex: 1 }}>
-                    <ScrollView
-                        style={styles.contentContainer}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }} // Increased bottom padding for toolbar space
-                    >
-                        {/* Title Input */}
-                        <TextInput
-                            style={[styles.titleInput, { color: effectiveTextColor }]}
-                            value={title}
-                            onChangeText={setTitle}
-                            placeholder="Title"
-                            placeholderTextColor={isDefaultBg ? "gray" : (isLightColor(selectedColor) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)')}
-                            autoFocus={true}
-                        />
-
-                        {/* Rich Text Editor */}
-                        {/* We apply a wrapper style to make it seamless */}
-                        <View style={{ flex: 1, minHeight: 400, backgroundColor: effectiveBackgroundColor }}>
-                            <RichText
-                                editor={editor}
-                                style={{ backgroundColor: 'transparent' }} // Ensure WebView doesn't have its own white bg if possible
-                                injectedJavaScript={`
-                                    const style = document.createElement('style');
-                                    style.innerHTML = \`
-                                        body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-                                        /* Default Paragraph Styling */
-                                        p { font-size: 17px; line-height: 1.5; margin-bottom: 0.8em; }
-                                        /* Headings */
-                                        h1 { font-size: 24px; font-weight: 700; margin-bottom: 0.5em; }
-                                        h2 { font-size: 20px; font-weight: 600; margin-bottom: 0.5em; }
-                                        /* Lists */
-                                        ul, ol { padding-left: 20px; margin-bottom: 1em; }
-                                        li { margin-bottom: 0.2em; }
-                                        * { outline: none; }
-                                        p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
-                                        .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
-                                    \`;
-                                    document.head.appendChild(style);
-                                    true;
-                                `}
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={{ flex: 1 }}>
+                        <ScrollView
+                            style={styles.contentContainer}
+                            contentContainerStyle={{ flexGrow: 1, paddingBottom: 150 }} // Increased bottom padding for toolbar space
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            {/* Title Input */}
+                            <TextInput
+                                style={[styles.titleInput, { color: effectiveTextColor }]}
+                                value={title}
+                                onChangeText={setTitle}
+                                placeholder="Title"
+                                placeholderTextColor={isDefaultBg ? "gray" : (isLightColor(selectedColor) ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)')}
+                                autoFocus={true}
                             />
-                        </View>
-                    </ScrollView>
 
-                    {/* Rich Text Toolbar (Floating INSIDE formatting context) */}
-                    <RichTextToolbar
-                        editor={editor}
-                        selectedColor={selectedColor}
-                        onColorSelect={setSelectedColor}
-                        onFormatPress={() => setShowFormatModal(true)}
-                    />
-                </View>
+                            {/* Rich Text Editor */}
+                            {/* We apply a wrapper style to make it seamless */}
+                            <View style={{ flex: 1, minHeight: 400, backgroundColor: effectiveBackgroundColor }} onStartShouldSetResponder={() => true}>
+                                <RichText
+                                    editor={editor}
+                                    style={{ backgroundColor: 'transparent' }} // Ensure WebView doesn't have its own white bg if possible
+                                    injectedJavaScript={`
+                                        const style = document.createElement('style');
+                                        style.innerHTML = \`
+                                            body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+                                            /* Default Paragraph Styling */
+                                            p { font-size: 17px; line-height: 1.5; margin-bottom: 0.8em; }
+                                            /* Headings */
+                                            h1 { font-size: 24px; font-weight: 700; margin-bottom: 0.5em; }
+                                            h2 { font-size: 20px; font-weight: 600; margin-bottom: 0.5em; }
+                                            /* Lists */
+                                            ul, ol { padding-left: 20px; margin-bottom: 1em; }
+                                            li { margin-bottom: 0.2em; }
+                                            * { outline: none; }
+                                            p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
+                                            .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
+                                        \`;
+                                        document.head.appendChild(style);
+                                        true;
+                                    `}
+                                />
+                            </View>
+                        </ScrollView>
+
+                        {/* Rich Text Toolbar (Floating INSIDE formatting context) */}
+                        <RichTextToolbar
+                            editor={editor}
+                            selectedColor={selectedColor}
+                            onColorSelect={setSelectedColor}
+                            onFormatPress={() => setShowFormatModal(true)}
+                        />
+                    </View>
+                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
 
             <FormatModal

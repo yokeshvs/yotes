@@ -3,7 +3,7 @@ import { EditorBridge, useBridgeState } from '@10play/tentap-editor';
 import { BlurView } from 'expo-blur';
 import { Bold, CheckSquare, ChevronDown, ChevronRight, Italic, List, Palette, Strikethrough, Underline } from 'lucide-react-native';
 import { useState } from 'react';
-import { LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Dimensions, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 interface RichTextToolbarProps {
     editor: EditorBridge;
@@ -191,12 +191,13 @@ export default function RichTextToolbar({ editor, onFormatPress, selectedColor, 
                                     <ToolbarButton icon={List} action={() => editor.toggleBulletList()} isActive={editorState.isBulletListActive} />
                                     <ToolbarButton icon={CheckSquare} action={() => editor.toggleTaskList()} isActive={editorState.isTaskListActive} />
 
-                                    <View style={[styles.separator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
-
-                                    <TouchableOpacity onPress={toggleFormat} style={styles.iconButton}>
-                                        <ChevronRight size={20} color={activeColor} />
-                                    </TouchableOpacity>
                                 </ScrollView>
+
+                                <View style={[styles.separator, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }]} />
+
+                                <TouchableOpacity onPress={toggleFormat} style={styles.iconButton}>
+                                    <ChevronRight size={20} color={activeColor} />
+                                </TouchableOpacity>
                             </View>
                         )}
                     </BlurView>
@@ -257,8 +258,8 @@ const styles = StyleSheet.create({
     expandedCapsule: {
         height: 50,
         paddingHorizontal: 8,
-        maxWidth: 600, // Increased to allow full width on iPad/Larger phones
-        width: '100%', // Take up to maxWidth
+        maxWidth: Dimensions.get('window').width - 40, // Constrain to screen width minus margins
+        width: '100%',
     },
     collapsedButton: {
         width: 50,
