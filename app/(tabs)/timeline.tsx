@@ -245,7 +245,24 @@ export default function TimelineScreen() {
                                                     <Text style={styles.timeTagText}>{item.time}</Text>
                                                 </View>
                                             </View>
-                                            <Text style={[styles.eventContent, { color: itemContentColor }]} numberOfLines={4}>{item.content.replace(/<[^>]+>/g, '')}</Text>
+                                            <Text style={[styles.eventContent, { color: itemContentColor }]} numberOfLines={4}>
+                                                {item.content
+                                                    .replace(/<ul[^>]*>/gi, '')
+                                                    .replace(/<ol[^>]*>/gi, '')
+                                                    .replace(/<li[^>]*>/gi, '\n• ')
+                                                    .replace(/<input[^>]*type="checkbox"[^>]*checked[^>]*>/gi, '\n[x] ')
+                                                    .replace(/<input[^>]*type="checkbox"[^>]*>/gi, '\n[ ] ')
+                                                    .replace(/<\/p>/gi, '\n')
+                                                    .replace(/<br\s*\/?>/gi, '\n')
+                                                    .replace(/<\/div>/gi, '\n')
+                                                    .replace(/<[^>]+>/g, '')
+                                                    .replace(/&nbsp;/g, ' ')
+                                                    .replace(/&amp;/g, '&')
+                                                    .replace(/&lt;/g, '<')
+                                                    .replace(/&gt;/g, '>')
+                                                    .replace(/&quot;/g, '"')
+                                                    .trim()}
+                                            </Text>
                                         </TouchableOpacity>
                                     </View>
                                 );

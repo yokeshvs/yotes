@@ -258,6 +258,11 @@ export default function NoteDetailScreen() {
                                                     body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
                                                     /* Default Paragraph Styling */
                                                     p { font-size: 17px; line-height: 24px; margin-bottom: 12px; margin-top: 0; }
+                                                    /* Restore List Styling */
+                                                    ul, ol { padding-left: 24px; margin-bottom: 12px; }
+                                                    li { margin-bottom: 4px; }
+                                                    /* Checkbox alignment */
+                                                    li[data-type="taskItem"] { list-style: none; padding-left: 0; display: flex; align-items: flex-start; gap: 8px; }
                                                     p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
                                                     .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
                                                 \`;

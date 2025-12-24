@@ -36,7 +36,7 @@ export default function SettingsScreen() {
                             <View className="w-8 h-8 items-center justify-center bg-gray-100 dark:bg-zinc-800 rounded-full mr-3">
                                 <Sun size={18} color={theme === 'dark' ? 'white' : 'black'} />
                             </View>
-                            <Text className="text-base font-medium flex-1 text-gray-900 dark:text-white">Light Mode</Text>
+                            <Text className="text-base font-medium flex-1 text-black dark:text-white">Light Mode</Text>
                             {theme === 'light' && <Check size={20} color="#b8e82a" />}
                         </TouchableOpacity>
 
@@ -47,7 +47,7 @@ export default function SettingsScreen() {
                             <View className="w-8 h-8 items-center justify-center bg-gray-900 dark:bg-zinc-700 rounded-full mr-3">
                                 <Moon size={18} color="white" />
                             </View>
-                            <Text className="text-base font-medium flex-1 text-gray-900 dark:text-white">Dark Mode</Text>
+                            <Text className="text-base font-medium flex-1 text-black dark:text-white">Dark Mode</Text>
                             {theme === 'dark' && <Check size={20} color="#b8e82a" />}
                         </TouchableOpacity>
 
@@ -59,7 +59,7 @@ export default function SettingsScreen() {
                                 <Smartphone size={18} color="#2563eb" />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-base font-medium text-gray-900 dark:text-white">System (Auto)</Text>
+                                <Text className="text-base font-medium text-black dark:text-white">System (Auto)</Text>
                                 <Text className="text-gray-400 text-xs">Default</Text>
                             </View>
                             {theme === 'system' && <Check size={20} color="#b8e82a" />}

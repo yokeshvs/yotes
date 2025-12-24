@@ -4,15 +4,27 @@ import { BlurView } from 'expo-blur';
 import { useNavigation, useRouter } from 'expo-router';
 import { Pin, Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StatusBar, Text, TouchableOpacity, useColorScheme, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Image, LayoutAnimation, Platform, ScrollView, StatusBar, Text, TouchableOpacity, UIManager, useColorScheme, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function NotesScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const navigation = useNavigation(); // Add navigation hook
+  const navigation = useNavigation();
   const { notes, allTags, searchQuery, deleteNotes, togglePin } = useNotes();
   const [selectedFilter, setSelectedFilter] = useState('All');
   const colorScheme = useColorScheme();
+
+  const handleFilterSelect = (tag: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSelectedFilter(tag);
+  };
+
 
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -111,12 +123,13 @@ export default function NotesScreen() {
     <View style={{ flex: 1 }} className="bg-[#F2F2F7] dark:bg-black">
       <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+        {/* Restored 'top' edge so content starts below Status Bar and Sticky Header respects top inset */}
 
         {/* Main ScrollView with Sticky Filters */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           stickyHeaderIndices={[1]} // Index 1 is the Filter View
-          contentContainerStyle={{ paddingBottom: 100 }} // Bottom spacer
+          contentContainerStyle={{ paddingBottom: 100 }} // Removed manual paddingTop
           keyboardDismissMode="on-drag"
         >
 
@@ -127,12 +140,12 @@ export default function NotesScreen() {
                 Let's keep it visible but allow scrolling.
             */}
           <View
-            className="items-center justify-center pt-2 pb-0" // Tight spacing
-            style={{ opacity: isSelectionMode ? 0 : 1 }}
+            className="items-center justify-center pt-0 pb-0"
+            style={{ opacity: isSelectionMode ? 0 : 1, marginBottom: -25, marginTop: -25 }}
           >
             <Image
               source={require('../../assets/header_logo_brand.png')}
-              style={{ width: 432, height: 110, resizeMode: 'contain' }}
+              style={{ width: 430, height: 133, resizeMode: 'contain', transform: [{ scale: 1.05 }] }} // Reduced size by ~5%
               className="dark:opacity-80"
             />
           </View>
@@ -152,7 +165,7 @@ export default function NotesScreen() {
                 return (
                   <TouchableOpacity
                     key={tag}
-                    onPress={() => setSelectedFilter(tag)}
+                    onPress={() => handleFilterSelect(tag)}
                     className={`mr-3 px-6 py-3 rounded-full border shadow-sm items-center justify-center min-w-[80px]
                             ${isSelected
                         ? 'bg-[#b8e82a] border-transparent'
@@ -229,7 +242,7 @@ export default function NotesScreen() {
 
         {/* Selection Header Overlay */}
         {isSelectionMode && (
-          <View className="absolute top-0 left-0 right-0 z-50 px-6 pt-2">
+          <View className="absolute left-0 right-0 z-50 px-6 pt-2" style={{ top: insets.top }}>
             <BlurView
               intensity={80}
               tint={colorScheme === 'dark' ? 'dark' : 'light'}
@@ -254,7 +267,7 @@ export default function NotesScreen() {
 
         {/* Floating Bottom Action Bar for Selection Mode */}
         {isSelectionMode && (
-          <View className="absolute bottom-10 left-0 right-0 items-center z-50">
+          <View className="absolute left-0 right-0 items-center z-50" style={{ bottom: insets.bottom + 60 }}>
             <BlurView
               intensity={80}
               tint={colorScheme === 'dark' ? 'dark' : 'light'}

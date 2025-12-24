@@ -1,4 +1,5 @@
 import { useTheme } from '@/context/ThemeContext';
+import { BlurView } from 'expo-blur';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -21,68 +22,97 @@ export function NoteCard({ id, title, content, date, color, isPinned, isSelectio
     const { colorScheme } = useTheme();
     const isDark = colorScheme === 'dark';
 
-    // If note is default white, turn it black in dark mode (adaptive).
-    // Otherwise keep the user's selected color.
+    // Glass effect colors - Semi-transparent logic
+    // Default white cards become semi-transparent white in light mode, semi-transparent black in dark mode.
+    // Colored cards keep their color but with opacity to let gradient show through (optional, or keeping them solid for contrast).
+    // Let's go with: Default cards = Glass. Colored cards = Solid (or slightly glassy).
+
     const isDefaultWhite = color === '#ffffff' || color === '#fff';
-    const finalBackgroundColor = (isDark && isDefaultWhite) ? '#18181b' : color; // using zinc-900 for nicer black
+
+    // Default cards get distinct dark/light tints. Colored cards remain solid.
+    const glassBackgroundColor = isDefaultWhite
+        ? (isDark ? 'rgba(30,30,30,0.45)' : 'rgba(255,255,255,0.45)')
+        : color;
 
     // Text color contrast
     const textColor = (isDark && isDefaultWhite) ? '#ffffff' : '#111827';
     const contentColor = (isDark && isDefaultWhite) ? '#9ca3af' : '#374151';
     const dateColor = (isDark && isDefaultWhite) ? '#6b7280' : '#6b7280';
-    const borderColor = (isDark && isDefaultWhite) ? '#27272a' : 'transparent'; // border for dark mode cards
+    const borderColor = (isDark && isDefaultWhite) ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.3)';
 
     return (
         <TouchableOpacity
             onPress={onPress}
             onLongPress={onLongPress}
-            style={{ marginBottom: 16, width: '100%' }} // Layout props moved here
+            style={{ marginBottom: 10, width: '100%' }}
             activeOpacity={0.8}
         >
             <Animated.View
                 sharedTransitionTag={`note-bg-${id}`}
                 style={[
                     styles.card,
-                    { backgroundColor: finalBackgroundColor, borderColor: borderColor, borderWidth: isDark ? 1 : 0, marginBottom: 0 }, // marginBottom handled by wrapper
+                    {
+                        backgroundColor: 'transparent', // Transparent for glass
+                        borderColor: borderColor,
+                        borderWidth: 1,
+                        overflow: 'hidden', // Clip BlurView
+                        padding: 0 // Remove padding from container, move to BlurView
+                    },
                     isSelectionMode && isSelected && { borderColor: '#b8e82a', borderWidth: 2 }
                 ]}
             >
-                <View>
-                    <View className="flex-row justify-between items-start mb-2">
-                        <Text style={[styles.title, { color: textColor, flex: 1, paddingRight: isSelectionMode ? 24 : 0 }]} numberOfLines={2}>
-                            {title}
-                        </Text>
-                        {isPinned && !isSelectionMode && (
-                            <View className="justify-center ml-2">
-                                <Pin size={18} color={textColor} style={{ opacity: 1 }} />
-                            </View>
-                        )}
-                    </View>
-
-                    {isSelectionMode && (
-                        <View className="absolute top-0 right-0">
-                            {isSelected ? (
-                                <CheckCircle2 size={24} color="#b8e82a" fill={isDark ? "black" : "white"} />
-                            ) : (
-                                <Circle size={24} color={isDark ? "#52525b" : "#d1d5db"} />
+                <BlurView
+                    intensity={isDefaultWhite ? 40 : 0} // Blur only default white cards
+                    tint={isDark ? 'dark' : 'light'}
+                    style={{ flex: 1, padding: 24, backgroundColor: glassBackgroundColor }}
+                >
+                    <View>
+                        <View className="flex-row justify-between items-start mb-2">
+                            <Text style={[styles.title, { color: textColor, flex: 1, paddingRight: isSelectionMode ? 24 : 0 }]} numberOfLines={2}>
+                                {title}
+                            </Text>
+                            {isPinned && !isSelectionMode && (
+                                <View className="justify-center ml-2">
+                                    <Pin size={18} color={textColor} style={{ opacity: 1 }} />
+                                </View>
                             )}
                         </View>
-                    )}
 
-                    <Text style={[styles.content, { color: contentColor }]} numberOfLines={6}>
-                        {content
-                            .replace(/<\/p>/gi, '\n')
-                            .replace(/<br\s*\/?>/gi, '\n')
-                            .replace(/<\/div>/gi, '\n')
-                            .replace(/<[^>]+>/g, '')
-                            .trim()}
-                    </Text>
-                </View>
-                <View>
-                    <Text style={[styles.date, { color: dateColor }]}>
-                        {date}
-                    </Text>
-                </View>
+                        {isSelectionMode && (
+                            <View className="absolute top-0 right-0">
+                                {isSelected ? (
+                                    <CheckCircle2 size={24} color="#b8e82a" fill={isDark ? "black" : "white"} />
+                                ) : (
+                                    <Circle size={24} color={isDark ? "#52525b" : "#d1d5db"} />
+                                )}
+                            </View>
+                        )}
+
+                        <Text style={[styles.content, { color: contentColor }]} numberOfLines={6}>
+                            {content
+                                .replace(/<ul[^>]*>/gi, '') // Remove ul tags
+                                .replace(/<ol[^>]*>/gi, '') // Remove ol tags
+                                .replace(/<li[^>]*>/gi, '\n• ') // Convert list items to bullets
+                                .replace(/<input[^>]*type="checkbox"[^>]*checked[^>]*>/gi, '\n[x] ') // Checked box
+                                .replace(/<input[^>]*type="checkbox"[^>]*>/gi, '\n[ ] ') // Unchecked box
+                                .replace(/<\/p>/gi, '\n')
+                                .replace(/<br\s*\/?>/gi, '\n')
+                                .replace(/<\/div>/gi, '\n')
+                                .replace(/<[^>]+>/g, '') // Strip remaining tags
+                                .replace(/&nbsp;/g, ' ')
+                                .replace(/&amp;/g, '&')
+                                .replace(/&lt;/g, '<')
+                                .replace(/&gt;/g, '>')
+                                .replace(/&quot;/g, '"')
+                                .trim()}
+                        </Text>
+                    </View>
+                    <View>
+                        <Text style={[styles.date, { color: dateColor }]}>
+                            {date}
+                        </Text>
+                    </View>
+                </BlurView>
             </Animated.View>
         </TouchableOpacity>
     );
@@ -93,7 +123,7 @@ const styles = StyleSheet.create({
         width: '100%',
         borderRadius: 32,
         padding: 24,
-        marginBottom: 16,
+        marginBottom: 0,
         justifyContent: 'space-between',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },

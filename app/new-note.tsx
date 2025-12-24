@@ -131,12 +131,14 @@ export default function NewNoteScreen() {
                                             body { background-color: transparent; color: ${effectiveTextColor}; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
                                             /* Default Paragraph Styling */
                                             p { font-size: 17px; line-height: 1.5; margin-bottom: 0.8em; }
+                                            /* Restore List Styling */
+                                            ul, ol { padding-left: 20px; margin-bottom: 1em; }
+                                            li { margin-bottom: 0.2em; }
+                                            /* Checkbox alignment */
+                                            li[data-type="taskItem"] { list-style: none; padding-left: 0; display: flex; align-items: flex-start; gap: 8px; }
                                             /* Headings */
                                             h1 { font-size: 24px; font-weight: 700; margin-bottom: 0.5em; }
                                             h2 { font-size: 20px; font-weight: 600; margin-bottom: 0.5em; }
-                                            /* Lists */
-                                            ul, ol { padding-left: 20px; margin-bottom: 1em; }
-                                            li { margin-bottom: 0.2em; }
                                             * { outline: none; }
                                             p.is-editor-empty:first-child::before { content: none !important; display: none !important; } 
                                             .ProseMirror p.is-editor-empty:first-child::before { display: none !important; }
